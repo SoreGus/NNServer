@@ -39,7 +39,7 @@ class AudioClassifier:
     def save_nn(self):
         if not self.model:
             return "Rede neural não foi inicializada. Por favor, chame o método 'initNN' primeiro."
-        self.model.save(f"{self.name}.h5")
+        self.model.save(f"data/{self.name}.h5")
         return f"Rede neural {self.name} salva com sucesso!"
 
     def train_nn(self, audio_files, labels):
