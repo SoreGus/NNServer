@@ -66,10 +66,16 @@ class AudioClassifier:
         return padded_sequences
 
     def classify(self, audio_file):
-        mfccs = self.extract_features(audio_file)
-        mfccs_padded = np.expand_dims(mfccs, axis=0)
-        prediction = self.model.predict(mfccs_padded)
-        return int(np.argmax(prediction))
+        # Pré-processamento do áudio
+        features = self.extract_features(audio_file)
+        features = np.expand_dims(features, axis=0)  # Ajustar a forma para a previsão
+
+        # Obter as probabilidades das classes
+        probabilities = self.model.predict(features)
+        class_index = np.argmax(probabilities)
+        confidence = probabilities[0][class_index]
+
+        return class_index, confidence
 
 audio_classifier = None
 
@@ -115,17 +121,18 @@ def train_nn():
 
 @app.route('/classify', methods=['POST'])
 def classify():
-    if not audio_classifier:
-        return "Nenhuma rede neural inicializada. Por favor, chame o método 'initNN' primeiro."
     if 'audio' not in request.files:
-        return "Arquivo de áudio não encontrado na solicitação.", 400
+        return jsonify({'error': 'No audio file provided'}), 400
 
     audio_file = request.files['audio']
-    file_path = os.path.join('temp', audio_file.filename)
-    audio_file.save(file_path)
-    class_index = audio_classifier.classify(file_path)
-    os.remove(file_path)
-    return jsonify({'class_index': class_index})
+    audio_file_path = f'temp/{audio_file.filename}'
+    audio_file.save(audio_file_path)
+
+    try:
+        class_index, confidence = audio_classifier.classify(audio_file_path)
+        return jsonify({'class': int(class_index), 'confidence': float(confidence)}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     if not os.path.exists('temp'):
