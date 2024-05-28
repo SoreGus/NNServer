@@ -1,4 +1,5 @@
 import os
+import json
 import librosa
 import numpy as np
 import tensorflow as tf
@@ -10,13 +11,18 @@ class AudioClassifier:
         self.name = name
         self.model = None
         self.optimizer = None
+        self.history_file = f"data/history.json"
+        self.class_0_count = 0
+        self.class_1_count = 0
+        self.history = self.load_history()
 
     def init_nn(self):
-        model_file = f"{self.name}.h5"
+        model_file = f"data/{self.name}.h5"
         if os.path.exists(model_file):
             self.model = models.load_model(model_file)
             self.optimizer = tf.keras.optimizers.Adam()
             self.model.compile(optimizer=self.optimizer, loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+            self.load_history_for_model()
         else:
             self.model = self.create_nn()
         return self.model
@@ -35,6 +41,7 @@ class AudioClassifier:
         if not self.model:
             return "Rede neural não foi inicializada. Por favor, chame o método 'initNN' primeiro."
         self.model.save(f"data/{self.name}.h5")
+        self.save_history()
         return f"Rede neural {self.name} salva com sucesso!"
 
     def train_nn(self, audio_files, labels):
@@ -42,6 +49,7 @@ class AudioClassifier:
         mfccs_padded = self.pad_sequences(mfccs)
         labels = np.array(labels)
         self.model.fit(mfccs_padded, labels, epochs=10, batch_size=32)
+        self.update_history(labels)
 
     def load_audio(self, file_path):
         audio = AudioSegment.from_file(file_path)
@@ -71,3 +79,30 @@ class AudioClassifier:
         confidence = probabilities[0][class_index]
 
         return class_index, confidence
+
+    def load_history(self):
+        if os.path.exists(self.history_file):
+            with open(self.history_file, 'r') as f:
+                return json.load(f)
+        else:
+            return {}
+
+    def load_history_for_model(self):
+        if self.name in self.history:
+            self.class_0_count = self.history[self.name].get('class_0_count', 0)
+            self.class_1_count = self.history[self.name].get('class_1_count', 0)
+        else:
+            self.class_0_count = 0
+            self.class_1_count = 0
+
+    def update_history(self, labels):
+        self.class_0_count += np.sum(labels == 0)
+        self.class_1_count += np.sum(labels == 1)
+        self.history[self.name] = {
+            'class_0_count': self.class_0_count,
+            'class_1_count': self.class_1_count
+        }
+
+    def save_history(self):
+        with open(self.history_file, 'w') as f:
+            json.dump(self.history, f, indent=4)

@@ -66,4 +66,6 @@ def classify():
 if __name__ == '__main__':
     if not os.path.exists('temp'):
         os.makedirs('temp')
+    if not os.path.exists('data'):
+        os.makedirs('data')
     app.run(host='0.0.0.0', port=8080, debug=True)  # Altere o host para 0.0.0.0 para permitir conexões externas
