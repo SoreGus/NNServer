@@ -59,6 +59,7 @@ def classify():
 
     try:
         class_index, confidence = audio_classifier.classify(audio_file_path)
+        os.remove(audio_file_path)
         return jsonify({'class': int(class_index), 'confidence': float(confidence)}), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -68,4 +69,4 @@ if __name__ == '__main__':
         os.makedirs('temp')
     if not os.path.exists('data'):
         os.makedirs('data')
-    app.run(host='0.0.0.0', port=8080, debug=True)  # Altere o host para 0.0.0.0 para permitir conexões externas
+    app.run(host='0.0.0.0', port=8080, debug=True)
