@@ -1,17 +1,19 @@
 import tensorflow as tf
 from tensorflow.keras import layers, models
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
+import numpy as np
+import matplotlib.pyplot as plt
 import os
 
 class ImageClassifier:
     def __init__(self):
         self.model = None
 
-    def create_network(self, kernels_layer_1=2, kernels_layer_2=2, kernels_layer_3=2, kernels_layer_4=2, dense_units=100, output_units=45):
+    def create_network(self, kernels_layer_1=4, kernels_layer_2=16, kernels_layer_3=32, kernels_layer_4=64, dense_units=200, output_units=45):
         self.model = models.Sequential()
 
         # Primeira camada de Convolução e MaxPooling
-        self.model.add(layers.Conv2D(kernels_layer_1, (3, 3), activation='relu', padding='valid', input_shape=(200, 200, 1)))
+        self.model.add(layers.Conv2D(kernels_layer_1, (3, 3), activation='relu', padding='valid', input_shape=(200, 200, 3)))
         self.model.add(layers.MaxPooling2D((2, 2)))
 
         # Segunda camada de Convolução e MaxPooling
@@ -66,7 +68,7 @@ class ImageClassifier:
         train_generator = datagen.flow_from_directory(
             data_dir,
             target_size=(200, 200),
-            color_mode="grayscale",
+            color_mode="rgb",  # Mudança para RGB
             batch_size=batch_size,
             class_mode='sparse',
             subset='training')
@@ -74,7 +76,7 @@ class ImageClassifier:
         validation_generator = datagen.flow_from_directory(
             data_dir,
             target_size=(200, 200),
-            color_mode="grayscale",
+            color_mode="rgb",  # Mudança para RGB
             batch_size=batch_size,
             class_mode='sparse',
             subset='validation')
@@ -94,7 +96,7 @@ class ImageClassifier:
         test_generator = datagen.flow_from_directory(
             data_dir,
             target_size=(200, 200),
-            color_mode="grayscale",
+            color_mode="rgb",  # Mudança para RGB
             batch_size=batch_size,
             class_mode='sparse',
             shuffle=False)  # Não misturar para manter a correspondência das previsões
@@ -109,7 +111,6 @@ class ImageClassifier:
             return None
 
         image = tf.image.resize(image, (200, 200))
-        image = tf.image.rgb_to_grayscale(image)
         image = image / 255.0  # Normalizando a imagem
         image = tf.expand_dims(image, axis=0)  # Adicionando a dimensão do batch
 
@@ -117,15 +118,39 @@ class ImageClassifier:
         predicted_class = tf.argmax(prediction, axis=1).numpy()
 
         return predicted_class
+    
+    def normalize_kernel(self, kernel):
+        kernel_min = kernel.min()
+        kernel_max = kernel.max()
+        return 255 * (kernel - kernel_min) / (kernel_max - kernel_min)
 
+# Configurações do modelo
 nnName = "mammals"
 
 classifier = ImageClassifier()
+# classifier.create_network(kernels_layer_1=4, kernels_layer_2=16, kernels_layer_3=32, kernels_layer_4=64, dense_units=20, output_units=45)
+classifier.load_network(f'./data/{nnName}.keras')
 
-classifier.create_network(kernels_layer_1=4, kernels_layer_2=16, kernels_layer_3=32, kernels_layer_4=64, dense_units=200, output_units=45)
+# Treinando o modelo
+# classifier.train_on_dir('/Users/gustavosore/Documents/Projects/SML/Tests/SoreMachineLearningTests/Data/mammals', batch_size=32, epochs=20)
 
-classifier.train_on_dir('/Users/gustavosore/Documents/Projects/SML/Tests/SoreMachineLearningTests/Data/mammals', batch_size=32, epochs=20)
+# Salvando o modelo
+# classifier.save_network(f'./data/{nnName}.keras')
 
-classifier.save_network(f'./{nnName}.keras')
-
+# Testando o modelo
 classifier.test_on_dir('/Users/gustavosore/Documents/Projects/SML/Tests/SoreMachineLearningTests/Data/mammals')
+
+# layer = classifier.model.get_layer(name='conv2d_1')
+# kernels, biases = layer.get_weights()
+# kernels_normalized = np.array([classifier.normalize_kernel(k) for k in kernels])
+
+# if not os.path.exists('kernels'):
+#     os.makedirs('kernels')
+
+# for i, kernel in enumerate(kernels_normalized):
+#     # Para kernels com múltiplos canais, salve cada canal como uma imagem separada
+#     for j in range(kernel.shape[-1]):
+#         plt.imshow(kernel[:, :, j], cmap='gray')
+#         plt.axis('off')
+#         plt.savefig(f'kernels/kernel_{i}_channel_{j}.jpg', bbox_inches='tight', pad_inches=0)
+#         plt.close()
